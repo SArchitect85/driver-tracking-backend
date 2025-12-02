@@ -1,58 +1,76 @@
 <!DOCTYPE html>
 <html>
-<head><title>API Test</title></head>
+<head><title>Production API Test</title></head>
 <body style="font-family: Arial; padding: 40px;">
-<h1>API Test</h1>
+<h1>🚀 Production API Test</h1>
+<p>API: https://driver-tracking-backend-production.up.railway.app</p>
+
 <button onclick="test1()" style="padding: 15px; margin: 10px; font-size: 16px;">1. Test Backend</button>
 <div id="r1"></div>
+
 <button onclick="test2()" style="padding: 15px; margin: 10px; font-size: 16px;">2. Admin Login</button>
 <div id="r2"></div>
+
 <button onclick="test3()" style="padding: 15px; margin: 10px; font-size: 16px;">3. Create Driver</button>
 <div id="r3"></div>
-<script>
-var API='http://localhost:3001/api';
-var adminToken='';
-function test1(){document.getElementById('r1').innerHTML='Testing...';fetch('http://localhost:3001/health').then(function(r){return r.json();}).then(function(d){document.getElementById('r1').innerHTML='<div style="padding:15px;background:lightgreen;margin:10px 0;">✅ Backend running!</div>';}).catch(function(e){document.getElementById('r1').innerHTML='<div style="padding:15px;background:pink;margin:10px 0;">❌ '+e.message+'</div>';});}
-function test2(){document.getElementById('r2').innerHTML='Logging in...';fetch(API+'/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:'admin@example.com',password:'admin123'})}).then(function(r){return r.json();}).then(function(d){adminToken=d.token;document.getElementById('r2').innerHTML='<div style="padding:15px;background:lightgreen;margin:10px 0;">✅ Admin logged in!</div>';}).catch(function(e){document.getElementById('r2').innerHTML='<div style="padding:15px;background:pink;margin:10px 0;">❌ '+e.message+'</div>';});}
-function test3(){document.getElementById('r3').innerHTML='Creating...';fetch(API+'/auth/register',{method:'POST',headers:{'Authorization':'Bearer '+adminToken,'Content-Type':'application/json'},body:JSON.stringify({email:'driver@example.com',password:'driver123',firstName:'Test',lastName:'Driver',phoneNumber:'555-0123'})}).then(function(r){return r.json();}).then(function(d){document.getElementById('r3').innerHTML='<div style="padding:15px;background:lightgreen;margin:10px 0;">✅ Driver created! Email: driver@example.com Password: driver123</div>';}).catch(function(e){document.getElementById('r3').innerHTML='<div style="padding:15px;background:pink;margin:10px 0;">❌ '+e.message+'</div>';});}
-</script>
-</body>
-</html>
-<h2>4. Driver Login</h2>
+
 <button onclick="test4()" style="padding: 15px; margin: 10px; font-size: 16px;">4. Driver Login</button>
 <div id="r4"></div>
 
-<h2>5. Start Shift</h2>
 <button onclick="test5()" style="padding: 15px; margin: 10px; font-size: 16px;">5. Start Shift</button>
 <div id="r5"></div>
 
 <script>
+var API='https://driver-tracking-backend-production.up.railway.app/api';
+var adminToken='';
 var driverToken='';
 var shiftId=null;
 
-function test4(){document.getElementById('r4').innerHTML='Logging in...';fetch(API+'/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:'driver@example.com',password:'driver123'})}).then(function(r){return r.json();}).then(function(d){driverToken=d.token;document.getElementById('r4').innerHTML='<div style="padding:15px;background:lightgreen;margin:10px 0;">✅ Driver logged in! Token: '+driverToken.substring(0,30)+'...</div>';}).catch(function(e){document.getElementById('r4').innerHTML='<div style="padding:15px;background:pink;margin:10px 0;">❌ '+e.message+'</div>';});}
+function show(id,msg,ok){document.getElementById(id).innerHTML='<div style="padding:15px;background:'+(ok?'lightgreen':'pink')+';margin:10px 0;">'+msg+'</div>';}
 
-function test5(){document.getElementById('r5').innerHTML='Starting shift...';fetch(API+'/shifts/start',{method:'POST',headers:{'Authorization':'Bearer '+driverToken,'Content-Type':'application/json'},body:JSON.stringify({latitude:34.0522,longitude:-118.2437})}).then(function(r){return r.json();}).then(function(d){shiftId=d.shift.id;document.getElementById('r5').innerHTML='<div style="padding:15px;background:lightgreen;margin:10px 0;">✅ Shift started! ID: '+shiftId+'</div>';}).catch(function(e){document.getElementById('r5').innerHTML='<div style="padding:15px;background:pink;margin:10px 0;">❌ '+e.message+'</div>';});}
+function test1(){
+  fetch('https://driver-tracking-backend-production.up.railway.app/health')
+  .then(function(r){return r.json();})
+  .then(function(d){show('r1','✅ Backend running! '+JSON.stringify(d),true);})
+  .catch(function(e){show('r1','❌ '+e.message,false);});
+}
+
+function test2(){
+  fetch(API+'/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:'admin@example.com',password:'admin123'})})
+  .then(function(r){return r.json();})
+  .then(function(d){
+    if(d.token){adminToken=d.token;show('r2','✅ Admin logged in!',true);}
+    else{show('r2','❌ '+JSON.stringify(d),false);}
+  })
+  .catch(function(e){show('r2','❌ '+e.message,false);});
+}
+
+function test3(){
+  fetch(API+'/auth/register',{method:'POST',headers:{'Authorization':'Bearer '+adminToken,'Content-Type':'application/json'},body:JSON.stringify({email:'driver@example.com',password:'driver123',firstName:'Test',lastName:'Driver',phoneNumber:'555-1234'})})
+  .then(function(r){return r.json();})
+  .then(function(d){show('r3','✅ Driver created! '+JSON.stringify(d),true);})
+  .catch(function(e){show('r3','❌ '+e.message,false);});
+}
+
+function test4(){
+  fetch(API+'/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:'driver@example.com',password:'driver123'})})
+  .then(function(r){return r.json();})
+  .then(function(d){
+    if(d.token){driverToken=d.token;show('r4','✅ Driver logged in!',true);}
+    else{show('r4','❌ '+JSON.stringify(d),false);}
+  })
+  .catch(function(e){show('r4','❌ '+e.message,false);});
+}
+
+function test5(){
+  fetch(API+'/shifts/start',{method:'POST',headers:{'Authorization':'Bearer '+driverToken,'Content-Type':'application/json'},body:JSON.stringify({latitude:34.05,longitude:-118.24})})
+  .then(function(r){return r.json();})
+  .then(function(d){
+    if(d.shift){shiftId=d.shift.id;show('r5','✅ Shift started! ID: '+shiftId,true);}
+    else{show('r5','❌ '+JSON.stringify(d),false);}
+  })
+  .catch(function(e){show('r5','❌ '+e.message,false);});
+}
 </script>
-
-<h2>6. End Shift</h2>
-<button onclick="test6()" style="padding: 15px; margin: 10px; font-size: 16px;">6. End Shift</button>
-<div id="r6"></div>
-
-<h2>7. Submit Gas Request</h2>
-<button onclick="test7()" style="padding: 15px; margin: 10px; font-size: 16px;">7. Submit Gas Request ($45)</button>
-<div id="r7"></div>
-
-<h2>8. Approve Gas Request (Admin)</h2>
-<button onclick="test8()" style="padding: 15px; margin: 10px; font-size: 16px;">8. Approve Request</button>
-<div id="r8"></div>
-
-<script>
-var gasRequestId=null;
-
-function test6(){document.getElementById('r6').innerHTML='Ending shift...';fetch(API+'/shifts/'+shiftId+'/end',{method:'PUT',headers:{'Authorization':'Bearer '+driverToken,'Content-Type':'application/json'},body:JSON.stringify({latitude:34.06,longitude:-118.25,mileage:5.5})}).then(function(r){return r.json();}).then(function(d){document.getElementById('r6').innerHTML='<div style="padding:15px;background:lightgreen;margin:10px 0;">✅ Shift ended! Mileage: '+d.shift.mileage+' miles</div>';}).catch(function(e){document.getElementById('r6').innerHTML='<div style="padding:15px;background:pink;margin:10px 0;">❌ '+e.message+'</div>';});}
-
-function test7(){document.getElementById('r7').innerHTML='Submitting...';var form=new FormData();form.append('amount','45.00');form.append('station','Shell Gas Station');fetch(API+'/gas-requests',{method:'POST',headers:{'Authorization':'Bearer '+driverToken},body:form}).then(function(r){return r.json();}).then(function(d){gasRequestId=d.gasRequest.id;document.getElementById('r7').innerHTML='<div style="padding:15px;background:lightgreen;margin:10px 0;">✅ Gas request submitted! ID: '+gasRequestId+' Amount: $45.00 Status: pending</div>';}).catch(function(e){document.getElementById('r7').innerHTML='<div style="padding:15px;background:pink;margin:10px 0;">❌ '+e.message+'</div>';});}
-
-function test8(){document.getElementById('r8').innerHTML='Approving...';fetch(API+'/admin/gas-requests/'+gasRequestId,{method:'PUT',headers:{'Authorization':'Bearer '+adminToken,'Content-Type':'application/json'},body:JSON.stringify({status:'approved',notes:'Approved!'})}).then(function(r){return r.json();}).then(function(d){document.getElementById('r8').innerHTML='<div style="padding:15px;background:lightgreen;margin:10px 0;">✅ Gas request APPROVED! Status: '+d.gasRequest.status+'</div>';}).catch(function(e){document.getElementById('r8').innerHTML='<div style="padding:15px;background:pink;margin:10px 0;">❌ '+e.message+'</div>';});}
-</script>
+</body>
+</html>

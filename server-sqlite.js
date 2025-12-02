@@ -43,10 +43,8 @@ app.post('/api/auth/register', authenticateToken, verifyAdmin, (req, res) => {
   try {
     const { email, password, firstName, lastName, phoneNumber } = req.body;
     const hashedPassword = bcrypt.hashSync(password, 10);
-    
     const stmt = db.prepare('INSERT INTO users (email, password, first_name, last_name, phone_number, role, status) VALUES (?, ?, ?, ?, ?, ?, ?)');
     const result = stmt.run(email, hashedPassword, firstName, lastName, phoneNumber, 'driver', 'active');
-    
     res.status(201).json({ user: { id: result.lastInsertRowid, email, first_name: firstName, last_name: lastName } });
   } catch (error) {
     res.status(400).json({ error: 'User already exists' });
@@ -58,13 +56,10 @@ app.post('/api/auth/login', (req, res) => {
     const { email, password } = req.body;
     const stmt = db.prepare('SELECT * FROM users WHERE email = ?');
     const user = stmt.get(email);
-    
     if (!user) return res.status(401).json({ error: 'Invalid credentials' });
     if (user.status !== 'active') return res.status(403).json({ error: 'Account inactive' });
-    
     const validPassword = bcrypt.compareSync(password, user.password);
     if (!validPassword) return res.status(401).json({ error: 'Invalid credentials' });
-    
     const token = jwt.sign({ userId: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, user: { id: user.id, email: user.email, firstName: user.first_name, lastName: user.last_name, role: user.role } });
   } catch (error) {
@@ -74,56 +69,87 @@ app.post('/api/auth/login', (req, res) => {
 
 // SHIFT ROUTES
 app.post('/api/shifts/start', authenticateToken, (req, res) => {
-  const { latitude, longitude } = req.body;
-  const stmt = db.prepare('INSERT INTO shifts (user_id, start_time, start_latitude, start_longitude, status) VALUES (?, datetime("now"), ?, ?, ?)');
-  const result = stmt.run(req.user.userId, latitude, longitude, 'active');
-  const shift = db.prepare('SELECT * FROM shifts WHERE id = ?').get(result.lastInsertRowid);
-  res.status(201).json({ shift });
+  try {
+    const { latitude, longitude } = req.body;
+    const now = new Date().toISOString();
+    const stmt = db.prepare('INSERT INTO shifts (user_id, start_time, start_latitude, start_longitude, status) VALUES (?, ?, ?, ?, ?)');
+    const result = stmt.run(req.user.userId, now, latitude, longitude, 'active');
+    const shift = db.prepare('SELECT * FROM shifts WHERE id = ?').get(result.lastInsertRowid);
+    res.status(201).json({ shift });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to start shift: ' + error.message });
+  }
 });
 
 app.put('/api/shifts/:shiftId/end', authenticateToken, (req, res) => {
-  const { shiftId } = req.params;
-  const { latitude, longitude, mileage } = req.body;
-  const stmt = db.prepare('UPDATE shifts SET end_time = datetime("now"), end_latitude = ?, end_longitude = ?, mileage = ?, status = ? WHERE id = ? AND user_id = ?');
-  stmt.run(latitude, longitude, mileage, 'completed', shiftId, req.user.userId);
-  const shift = db.prepare('SELECT * FROM shifts WHERE id = ?').get(shiftId);
-  res.json({ shift });
+  try {
+    const { shiftId } = req.params;
+    const { latitude, longitude, mileage } = req.body;
+    const now = new Date().toISOString();
+    const stmt = db.prepare('UPDATE shifts SET end_time = ?, end_latitude = ?, end_longitude = ?, mileage = ?, status = ? WHERE id = ? AND user_id = ?');
+    stmt.run(now, latitude, longitude, mileage, 'completed', shiftId, req.user.userId);
+    const shift = db.prepare('SELECT * FROM shifts WHERE id = ?').get(shiftId);
+    res.json({ shift });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to end shift: ' + error.message });
+  }
 });
 
 app.post('/api/shifts/:shiftId/locations', authenticateToken, (req, res) => {
-  const { shiftId } = req.params;
-  const { latitude, longitude } = req.body;
-  const stmt = db.prepare('INSERT INTO shift_locations (shift_id, latitude, longitude) VALUES (?, ?, ?)');
-  stmt.run(shiftId, latitude, longitude);
-  res.status(201).json({ message: 'Location tracked' });
+  try {
+    const { shiftId } = req.params;
+    const { latitude, longitude } = req.body;
+    const stmt = db.prepare('INSERT INTO shift_locations (shift_id, latitude, longitude) VALUES (?, ?, ?)');
+    stmt.run(shiftId, latitude, longitude);
+    res.status(201).json({ message: 'Location tracked' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to track location' });
+  }
 });
 
 app.get('/api/shifts', authenticateToken, (req, res) => {
-  const stmt = db.prepare('SELECT * FROM shifts WHERE user_id = ? ORDER BY start_time DESC');
-  const shifts = stmt.all(req.user.userId);
-  res.json({ shifts });
+  try {
+    const stmt = db.prepare('SELECT * FROM shifts WHERE user_id = ? ORDER BY start_time DESC');
+    const shifts = stmt.all(req.user.userId);
+    res.json({ shifts });
+  } catch (error) {
+    res.json({ shifts: [] });
+  }
 });
 
 app.get('/api/shifts/active', authenticateToken, (req, res) => {
-  const stmt = db.prepare('SELECT * FROM shifts WHERE user_id = ? AND status = ? ORDER BY start_time DESC LIMIT 1');
-  const shift = stmt.get(req.user.userId, 'active');
-  res.json({ shift: shift || null });
+  try {
+    const stmt = db.prepare('SELECT * FROM shifts WHERE user_id = ? AND status = ? ORDER BY start_time DESC LIMIT 1');
+    const shift = stmt.get(req.user.userId, 'active');
+    res.json({ shift: shift || null });
+  } catch (error) {
+    res.json({ shift: null });
+  }
 });
 
 // GAS REQUESTS
 app.post('/api/gas-requests', authenticateToken, upload.single('receipt'), (req, res) => {
-  const { amount, station } = req.body;
-  const receiptPath = req.file ? req.file.path : null;
-  const stmt = db.prepare('INSERT INTO gas_requests (user_id, amount, station, receipt_path, status, created_at) VALUES (?, ?, ?, ?, ?, datetime("now"))');
-  const result = stmt.run(req.user.userId, amount, station, receiptPath, 'pending');
-  const gasRequest = db.prepare('SELECT * FROM gas_requests WHERE id = ?').get(result.lastInsertRowid);
-  res.status(201).json({ gasRequest });
+  try {
+    const { amount, station } = req.body;
+    const receiptPath = req.file ? req.file.path : null;
+    const now = new Date().toISOString();
+    const stmt = db.prepare('INSERT INTO gas_requests (user_id, amount, station, receipt_path, status, created_at) VALUES (?, ?, ?, ?, ?, ?)');
+    const result = stmt.run(req.user.userId, amount, station, receiptPath, 'pending', now);
+    const gasRequest = db.prepare('SELECT * FROM gas_requests WHERE id = ?').get(result.lastInsertRowid);
+    res.status(201).json({ gasRequest });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to submit gas request' });
+  }
 });
 
 app.get('/api/gas-requests', authenticateToken, (req, res) => {
-  const stmt = db.prepare('SELECT * FROM gas_requests WHERE user_id = ? ORDER BY created_at DESC');
-  const gasRequests = stmt.all(req.user.userId);
-  res.json({ gasRequests });
+  try {
+    const stmt = db.prepare('SELECT * FROM gas_requests WHERE user_id = ? ORDER BY created_at DESC');
+    const gasRequests = stmt.all(req.user.userId);
+    res.json({ gasRequests });
+  } catch (error) {
+    res.json({ gasRequests: [] });
+  }
 });
 
 // ADMIN ROUTES
@@ -141,21 +167,23 @@ app.get('/api/admin/shifts', authenticateToken, verifyAdmin, (req, res) => {
 
 app.get('/api/admin/gas-requests', authenticateToken, verifyAdmin, (req, res) => {
   const { status } = req.query;
-  let stmt;
+  let gasRequests;
   if (status) {
-    stmt = db.prepare('SELECT gr.*, u.first_name, u.last_name, u.email FROM gas_requests gr JOIN users u ON gr.user_id = u.id WHERE gr.status = ? ORDER BY gr.created_at DESC');
-    res.json({ gasRequests: stmt.all(status) });
+    const stmt = db.prepare('SELECT gr.*, u.first_name, u.last_name, u.email FROM gas_requests gr JOIN users u ON gr.user_id = u.id WHERE gr.status = ? ORDER BY gr.created_at DESC');
+    gasRequests = stmt.all(status);
   } else {
-    stmt = db.prepare('SELECT gr.*, u.first_name, u.last_name, u.email FROM gas_requests gr JOIN users u ON gr.user_id = u.id ORDER BY gr.created_at DESC');
-    res.json({ gasRequests: stmt.all() });
+    const stmt = db.prepare('SELECT gr.*, u.first_name, u.last_name, u.email FROM gas_requests gr JOIN users u ON gr.user_id = u.id ORDER BY gr.created_at DESC');
+    gasRequests = stmt.all();
   }
+  res.json({ gasRequests });
 });
 
 app.put('/api/admin/gas-requests/:requestId', authenticateToken, verifyAdmin, (req, res) => {
   const { requestId } = req.params;
   const { status, notes } = req.body;
-  const stmt = db.prepare('UPDATE gas_requests SET status = ?, admin_notes = ?, reviewed_at = datetime("now"), reviewed_by = ? WHERE id = ?');
-  stmt.run(status, notes, req.user.userId, requestId);
+  const now = new Date().toISOString();
+  const stmt = db.prepare('UPDATE gas_requests SET status = ?, admin_notes = ?, reviewed_at = ?, reviewed_by = ? WHERE id = ?');
+  stmt.run(status, notes, now, req.user.userId, requestId);
   const gasRequest = db.prepare('SELECT * FROM gas_requests WHERE id = ?').get(requestId);
   res.json({ gasRequest });
 });
@@ -192,27 +220,27 @@ const initDatabase = () => {
       phone_number TEXT,
       role TEXT DEFAULT 'driver',
       status TEXT DEFAULT 'active',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
     CREATE TABLE IF NOT EXISTS shifts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER,
-      start_time DATETIME NOT NULL,
-      end_time DATETIME,
+      start_time TEXT NOT NULL,
+      end_time TEXT,
       start_latitude REAL,
       start_longitude REAL,
       end_latitude REAL,
       end_longitude REAL,
       mileage REAL,
       status TEXT DEFAULT 'active',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
     CREATE TABLE IF NOT EXISTS shift_locations (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       shift_id INTEGER,
       latitude REAL,
       longitude REAL,
-      recorded_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      recorded_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
     CREATE TABLE IF NOT EXISTS gas_requests (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -223,12 +251,11 @@ const initDatabase = () => {
       status TEXT DEFAULT 'pending',
       admin_notes TEXT,
       reviewed_by INTEGER,
-      reviewed_at DATETIME,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      reviewed_at TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
   `);
 
-  // Create admin if not exists
   const admin = db.prepare('SELECT id FROM users WHERE email = ?').get('admin@example.com');
   if (!admin) {
     const hashedPassword = bcrypt.hashSync('admin123', 10);
