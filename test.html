@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Driver Tracking API Test</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 { font-size: 32px; margin-bottom: 10px; }
+        .header p { opacity: 0.9; }
+        .content { padding: 30px; }
+        .test-section {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .test-section h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            transition: all 0.3s;
+        }
+        button:hover { background: #5568d3; transform: translateY(-2px); }
+        button:active { transform: translateY(0); }
+        button.success { background: #10b981; }
+        button.danger { background: #ef4444; }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .result.success {
+            background: #d1fae5;
+            border-left: 4px solid #10b981;
+            color: #065f46;
+        }
+        .result.error {
+            background: #fee2e2;
+            border-left: 4px solid #ef4444;
+            color: #991b1b;
+        }
+        .result.info {
+            background: #dbeafe;
+            border-left: 4px solid #3b82f6;
+            color: #1e40af;
+        }
+        pre {
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+        .token-display {
+            background: #fff;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            word-break: break-all;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .stat-card {
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+        .stat-card h3 {
+            color: #667eea;
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+        .stat-card p {
+            color: #6b7280;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Driver Tracking API Test Suite</h1>
+            <p>Test your backend API locally</p>
+        </div>
+        
+        <div class="content">
+            <!-- Phase 1: Connection -->
+            <div class="test-section">
+                <h2>📡 Phase 1: Backend Connection</h2>
+                <button onclick="testHealth()">Test Backend Health</button>
+                <div id="health-result"></div>
+            </div>
+
+            <!-- Phase 2: Admin Auth -->
+            <div class="test-section">
+                <h2>🔐 Phase 2: Admin Authentication</h2>
+                <button onclick="testAdminLogin()">Login as Admin</button>
+                <button class="success" onclick="testCreateDriver()">Create Test Driver</button>
+                <button onclick="testGetDrivers()">Get All Drivers</button>
+                <div id="admin-result"></div>
+                <div id="admin-token" class="token-display" style="display:none;"></div>
+            </div>
+
+            <!-- Phase 3: Driver Auth -->
+            <div class="test-section">
+                <h2>🚗 Phase 3: Driver Authentication</h2>
+                <button onclick="testDriverLogin()">Login as Driver</button>
+                <div id="driver-result"></div>
+                <div id="driver-token" class="token-display" style="display:none;"></div>
+            </div>
+
+            <!-- Phase 4: Shift Operations -->
+            <div class="test-section">
+                <h2>⏱️ Phase 4: Shift Management</h2>
+                <button onclick="testStartShift()">Start Shift</button>
+                <button onclick="testTrackLocation()">Track Location</button>
+                <button class="danger" onclick="testEndShift()">End Shift</button>
+                <button onclick="testGetShifts()">Get Shift History</button>
+                <div id="shift-result"></div>
+            </div>
+
+            <!-- Phase 5: Gas Requests -->
+            <div class="test-section">
+                <h2>⛽ Phase 5: Gas Request Management</h2>
+                <button onclick="testSubmitGasRequest()">Submit Gas Request</button>
+                <button onclick="testGetGasRequests()">Get Gas Requests (Driver)</button>
+                <button onclick="testGetPendingRequests()">Get Pending (Admin)</button>
+                <button class="success" onclick="testApproveGasRequest()">Approve Request</button>
+                <div id="gas-result"></div>
+            </div>
+
+            <!-- Phase 6: Dashboard Stats -->
+            <div class="test-section">
+                <h2>📊 Phase 6: Dashboard Statistics</h2>
+                <button onclick="testGetStats()">Get Dashboard Stats</button>
+                <div id="stats-result"></div>
+                <div class="stats" id="stats-display"></div>
+            </div>
+
+            <!-- Run All -->
+            <div class="test-section" style="text-align: center;">
+                <button onclick="runAllTests()" style="font-size: 18px; padding: 16px 32px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    🚀 RUN ALL TESTS
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3001/api';
+        let adminToken = '';
+        let driverToken = '';
+        let currentShiftId = null;
+        let lastGasRequestId = null;
+
+        function showResult(elementId, message, type = 'info', data = null) {
+            const el = document.getElementById(elementId);
+            el.className = `result ${type}`;
+            el.innerHTML = message;
+            if (data) {
+                el.innerHTML += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            }
+        }
+
+        async function testHealth() {
+            try {
+                const response = await fetch('http://localhost:3001/health');
+                const data = await response.json();
+                showResult('health-result', '✅ Backend is running!', 'success', data);
+            } catch (err) {
+                showResult('health-result', `❌ Cannot connect to backend: ${err.message}<br><br>Make sure the server is running: <code>npm start</code>`, 'error');
+            }
+        }
+
+        async function testAdminLogin() {
+            try {
+                const response = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: 'admin@example.com', password: 'admin123' })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    adminToken = data.token;
+                    document.getElementById('admin-token').style.display = 'block';
+                    document.getElementById('admin-token').textContent = `Admin Token: ${adminToken.substring(0, 50)}...`;
+                    showResult('admin-result', `✅ Admin login successful!<br>Email: ${data.user.email}<br>Role: ${data.user.role}`, 'success');
+                } else {
+                    showResult('admin-result', `❌ Login failed: ${data.error}`, 'error');
+                }
+            } catch (err) {
+                showResult('admin-result', `❌ Error: ${err.message}`, 'error');
+            }
+        }
+
+        async function testCreateDriver() {
+            if (!adminToken) {
+                showResult('admin-result', '❌ Please login as admin first', 'error');
+                return;
+            }
+            try {
+                const timestamp = Date.now();
+                const response = await fetch(`${API_URL}/auth/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${adminToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: `driver${timestamp}@test.com`,
+                        password: 'driver123',
+                        firstName: 'Test',
+                        lastName: 'Driver',
+                        phoneNumber: '555-1234'
+                    })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    showResult('admin-result', `✅ Driver created successfully!<br>Email: ${data.user.email}`, 'success', data.user);
+                } else {
+                    showResult('admin-result', `❌ Failed: ${data.error}`, 'error');
+                }
+            } catch (err) {
+                showResult('admin-result', `❌ Error: ${err.message}`, 'error');
+            }
+        }
+
+        async function testGetDrivers() {
+            if (!adminToken) {
+                showResult('admin-result', '❌ Please login as admin first', 'error');
+                return;
+            }
+            try {
+                const response = await fetch(`${API_URL}/admin/drivers`, {
+                    headers: { 'Authorization': `Bearer ${adminToken}` }
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    showResult('admin-result', `✅ Retrieved ${data.drivers.length} drivers`, 'success', data.drivers);
+                } else {
+                    showResult('admin-result', `❌ Failed: ${data.error}`, 'error');
+                }
+            } catch (err) {
+                showResult('admin-result', `❌ Error: ${err.message}`, 'error');
+            }
+        }
+
+        async function testDriverLogin() {
+            try {
+                const response = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: 'driver1764646211652@test.com', password: 'driver123' })
+                const data = await response.json();
+                if (response.ok) {
+                    driverToken = data.token;
+                    document.getElementById('driver-token').style.display = 'block';
+                    document.getElementById('driver-token').textContent = `Driver Token: ${driverToken.substring(0, 50)}...`;
+                    showResult('driver-result', `✅ Driver login successful!<br>Email: ${data.user.email}`, 'success');
+                } else {
+                    showResult('driver-result', `❌ Login failed: ${data.error}<br><br>Create a driver first or use an existing email`, 'error');
+                }
+            } catch (err) {
+                showResult('driver-result', `❌ Error: ${err.message}`, 'error');
+            }
+        }
+
+        async function testStartShift() {
+            if (!driverToken) {
+                showResult('shift-result', '❌ Please login as driver first', 'error');
+                return;
+            }
+            try {
+                const response = await fetch(`${API_URL}/shifts/start`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${driverToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ latitude: 34.0522, longitude: -118.2437 })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    currentShiftId = data.shift.id;
+                    showResult('shift-result', `✅ Shift started!<br>Shift ID: ${currentShiftId}<br>Location: ${data.shift.start_latitude}, ${data.shift.start_longitude}`, 'success', data.shift);
+                } else {
+                    showResult('shift-result', `❌ Failed: ${data.error}`, 'error');
+                }
+            } catch (err) {
+                showResult('shift-result', `❌ Error: ${err.message}`, 'error');
+            }
+        }
+
+        async function testTrackLocation() {
+            if (!driverToken || !currentShiftId) {
+                showResult('shift-result', '❌ Please start a shift first', 'error');
+                return;
+            }
+            try {
+                const response = await fetch(`${API_URL}/shifts/${currentShiftId}/locations`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${driverToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ latitude: 34.0622, longitude: -118.2537 })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    showResult('shift-result', `✅ Location tracked successfully!`, 'success');
+                } else {
+                    showResult('shift-result', `❌ Failed: ${data.error}`, 'error');
+                }
+            } catch (err) {
+                showResult('shift-result', `❌ Error: ${err.message}`, 'error');
+            }
+        }
+
+        async function testEndShift() {
+            if (!driverToken || !currentShiftId) {
+                showResult('shift-result', '❌ Please start a shift first', 'error');
+                return;
+            }
+            try {
+                const response = await fetch(`${API_URL}/shifts/${currentShiftId}/end`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${driverToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ latitude: 34.0722, longitude: -118.2637, mileage: 5.3 })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    showResult('shift-result', `✅ Shift ended!<br>Duration: ${data.shift.start_time} to ${data.shift.end_time}<br>Mileage: ${data.shift.mileage} miles`, 'success', data.shift);
+                    currentShiftId = null;
+                } else {
+                    showResult('shift-result', `❌ Failed: ${data.error}`, 'error');
+                }
+            } catch (err) {
+                showResult('shift-result', `❌ Error: ${err.message}`, 'error');
+            }
+        }
+
+        async function testGetShifts() {
+            if (!driverToken) {
+                showResult('shift-result', '❌ Please login as driver first', 'error');
+                return;
+            }
+            try {
+                const response = await fetch(`${API_URL}/shifts`, {
+                    headers: { 'Authorization': `Bearer ${driverToken}` }
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    showResult('shift-result', `✅ Retrieved ${data.shifts.length} shifts`, 'success', data.shifts);
+                } else {
+                    showResult('shift-result', `❌ Failed: ${data.error}`, 'error');
+                }
+            } catch (err) {
+                showResult('shift-result', `❌ Error: ${err.message}`, 'error');
+            }
+        }
+
+        async function testSubmitGasRequest() {
+            if (!driverToken) {
+                showResult('gas-result', '❌ Please login as driver first', 'error');
+                return;
+            }
+            try {
+                const formData = new FormData();
+                formData.append('amount', '45.50');
+                formData.append('station', 'Shell Gas Station');
+                
+                const response = await fetch(`${API_URL}/gas-requests`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${driverToken}` },
+                    body: formData
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    lastGasRequestId = data.gasRequest.id;
+                    showResult('gas-result', `✅ Gas request submitted!<br>Amount: $${data.gasRequest.amount}<br>Station: ${data.gasRequest.station}<br>Status: ${data.gasRequest.status}`, 'success', data.gasRequest);
+                } else {
+                    showResult('gas-result', `❌ Failed: ${data.error}`, 'error');
+                }
+            } catch (err) {
+                showResult('gas-result', `❌ Error: ${err.message}`, 'error');
+            }
+        }
+
+        async function testGetGasRequests() {
+            if (!driverToken) {
+                showResult('gas-result', '❌ Please login as driver first', 'error');
+                return;
+            }
+            try {
+                const response = await fetch(`${API_URL}/gas-requests`, {
+                    headers: { 'Authorization': `Bearer ${driverToken}` }
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    showResult('gas-result', `✅ Retrieved ${data.gasRequests.length} gas requests`, 'success', data.gasRequests);
+                } else {
+                    showResult('gas-result', `❌ Failed: ${data.error}`, 'error');
+                }
+            } catch (err) {
+                showResult('gas-result', `❌ Error: ${err.message}`, 'error');
+            }
+        }
+
+        async function testGetPendingRequests() {
+            if (!adminToken) {
+                showResult('gas-result', '❌ Please login as admin first', 'error');
+                return;
+            }
+            try {
+                const response = await fetch(`${API_URL}/admin/gas-requests?status=pending`, {
+                    headers: { 'Authorization': `Bearer ${adminToken}` }
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    if (data.gasRequests.length > 0) {
+                        lastGasRequestId = data.gasRequests[0].id;
+                    }
+                    showResult('gas-result', `✅ Retrieved ${data.gasRequests.length} pending requests`, 'success', data.gasRequests);
+                } else {
+                    showResult('gas-result', `❌ Failed: ${data.error}`, 'error');
+                }
+            } catch (err) {
+                showResult('gas-result', `❌ Error: ${err.message}`, 'error');
+            }
+        }
+
+        async function testApproveGasRequest() {
+            if (!adminToken) {
+                showResult('gas-result', '❌ Please login as admin first', 'error');
+                return;
+            }
+            if (!lastGasRequestId) {
+                showResult('gas-result', '❌ Please get pending requests first', 'error');
+                return;
+            }
+            try {
+                const response = await fetch(`${API_URL}/admin/gas-requests/${lastGasRequestId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${adminToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ status: 'approved', notes: 'Approved via test suite' })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    showResult('gas-result', `✅ Gas request approved!<br>Status: ${data.gasRequest.status}<br>Notes: ${data.gasRequest.admin_notes}`, 'success', data.gasRequest);
+                } else {
+                    showResult('gas-result', `❌ Failed: ${data.error}`, 'error');
+                }
+            } catch (err) {
+                showResult('gas-result', `❌ Error: ${err.message}`, 'error');
+            }
+        }
+
+        async function testGetStats() {
+            if (!adminToken) {
+                showResult('stats-result', '❌ Please login as admin first', 'error');
+                return;
+            }
+            try {
+                const response = await fetch(`${API_URL}/admin/stats`, {
+                    headers: { 'Authorization': `Bearer ${adminToken}` }
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    const stats = data.stats;
+                    document.getElementById('stats-display').innerHTML = `
+                        <div class="stat-card">
+                            <h3>${stats.active_drivers}</h3>
+                            <p>Active Drivers</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>${stats.active_shifts}</h3>
+                            <p>Active Shifts</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>${stats.pending_gas_requests}</h3>
+                            <p>Pending Requests</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>${parseFloat(stats.today_mileage).toFixed(1)}</h3>
+                            <p>Today's Mileage</p>
+                        </div>
+                    `;
+                    showResult('stats-result', `✅ Dashboard stats retrieved!`, 'success', stats);
+                } else {
+                    showResult('stats-result', `❌ Failed: ${data.error}`, 'error');
+                }
+            } catch (err) {
+                showResult('stats-result', `❌ Error: ${err.message}`, 'error');
+            }
+        }
+
+        async function runAllTests() {
+            const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+            
+            await testHealth();
+            await delay(500);
+            
+            await testAdminLogin();
+            await delay(500);
+            
+            await testCreateDriver();
+            await delay(500);
+            
+            await testGetDrivers();
+            await delay(500);
+            
+            await testDriverLogin();
+            await delay(500);
+            
+            await testStartShift();
+            await delay(500);
+            
+            await testTrackLocation();
+            await delay(500);
+            
+            await testEndShift();
+            await delay(500);
+            
+            await testGetShifts();
+            await delay(500);
+            
+            await testSubmitGasRequest();
+            await delay(500);
+            
+            await testGetGasRequests();
+            await delay(500);
+            
+            await testGetPendingRequests();
+            await delay(500);
+            
+            await testApproveGasRequest();
+            await delay(500);
+            
+            await testGetStats();
+            
+            alert('✅ All tests completed! Check the results above.');
+        }
+    </script>
+</body>
+</html>
